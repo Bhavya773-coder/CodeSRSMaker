@@ -1,6 +1,5 @@
-streamlit==1.27.0
-fpdf==1.7.2
-openai==0.27.0
-nbformat==5.8.0
+streamlit
+fpdf
 pillow==9.5.0
-
+setuptools>=42
+wheel
