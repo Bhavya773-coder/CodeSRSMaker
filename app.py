@@ -4,7 +4,7 @@ from fpdf import FPDF
 import os
 
 client = openai.OpenAI(
-    api_key="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",
+    api_key="Your_Api_Key" ,
     base_url="https://api.groq.com/openai/v1"
 )
 
