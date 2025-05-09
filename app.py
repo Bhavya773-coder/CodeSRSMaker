@@ -1,35 +1,36 @@
 import streamlit as st
 import openai
 from fpdf import FPDF
+import streamlit.components.v1 as components
 import os
 
+# Initialize OpenAI Groq Client
 client = openai.OpenAI(
-    api_key="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" ,
+    api_key="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",
     base_url="https://api.groq.com/openai/v1"
 )
 
-st.set_page_config(page_title="SRS Generator", layout="centered")
-st.title("📄 Generate SRS & Explain Code from Files (Groq LLaMA 3)")
+st.set_page_config(page_title="SRS Generator + Study Notes", layout="centered")
+st.title("📄 SRS, Code Explanation & Topper Notes Generator (Groq LLaMA 3)")
 
-# File uploader with multiple file types
 uploaded_file = st.file_uploader("Upload your code file", type=["py", "txt", "js", "html", "java", "cpp", "ipynb", "md"])
 
+# ======== AI Features ========
+
 def generate_srs(code):
-    # Improved prompt for generating a more professional SRS
     prompt = """
     You are a software engineer creating a formal Software Requirements Specification (SRS) document for a software project.
     Your task is to create a detailed and structured SRS using the following sections:
-    
-    1. **Introduction**: Provide a high-level description of the software system, its goals, and scope.
-    2. **Overall Description**: Describe the software’s functionality, users, constraints, and system dependencies.
-    3. **Specific Requirements**: Outline the detailed software specifications, including performance, security, and design constraints.
-    4. **External Interface Requirements**: List the external systems and interfaces the software will interact with.
-    5. **Functional Requirements**: Define the core features and functionalities that the software must provide.
-    6. **Non-functional Requirements**: Specify non-functional attributes such as performance, scalability, and usability.
 
-    Ensure the language is formal and appropriate for a business setting, focusing on clarity and precision.
+    1. **Introduction**
+    2. **Overall Description**
+    3. **Specific Requirements**
+    4. **External Interface Requirements**
+    5. **Functional Requirements**
+    6. **Non-functional Requirements**
+
+    Ensure the language is formal and professional.
     """
-    
     response = client.chat.completions.create(
         model="llama3-8b-8192",
         messages=[
@@ -49,7 +50,30 @@ def generate_code_explanation(code):
     )
     return response.choices[0].message.content
 
-def generate_pdf(text, filename="SRS_Document.pdf"):
+def generate_topper_notes(code):
+    prompt = """
+    You are an expert computer science tutor. Create high-quality, concise, and well-structured academic-style study notes based on the following code.
+
+    The notes should help a student understand the logic, structure, and purpose of the code effectively. Use bullet points, simple language, and headings such as:
+    
+    1. **Topic Overview**
+    2. **Key Concepts in the Code**
+    3. **Step-by-Step Explanation**
+    4. **Use Cases / Real-life Applications**
+    5. **Exam Tips (if applicable)**
+
+    These notes should feel like they're made by a top student preparing for exams or viva. Avoid jargon, and ensure clarity for easy understanding and quick revision.
+    """
+    response = client.chat.completions.create(
+        model="llama3-8b-8192",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": f"Generate topper-style notes from this code:\n\n{code}"}
+        ]
+    )
+    return response.choices[0].message.content
+
+def generate_pdf(text, filename="Document.pdf"):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -69,29 +93,84 @@ def handle_uploaded_file(uploaded_file):
         code = uploaded_file.read().decode("utf-8")
     return code
 
+# ======== Main UI ========
+
 if uploaded_file is not None:
     code_content = handle_uploaded_file(uploaded_file)
-    
     st.code(code_content, language="python")
-
     st.markdown("---")
-    
-    # Generate SRS Button
+
+    # Generate SRS
     if st.button("🧠 Generate SRS Document"):
-        with st.spinner("Generating SRS with Groq LLaMA 3..."):
+        with st.spinner("Generating SRS..."):
             srs_text = generate_srs(code_content)
-            st.success("SRS Document Generated!")
+            st.success("✅ SRS Document Generated")
             st.text_area("SRS Preview", srs_text, height=400)
-            pdf_file = generate_pdf(srs_text)
+            pdf_file = generate_pdf(srs_text, filename="SRS_Document.pdf")
             with open(pdf_file, "rb") as f:
                 st.download_button("📥 Download SRS PDF", f, file_name=pdf_file)
 
-    # Generate Code Explanation Button
+    # Generate Code Explanation
     if st.button("💡 Explain Code"):
         with st.spinner("Generating explanation..."):
-            explanation_text = generate_code_explanation(code_content)
-            st.success("Code Explanation Generated!")
-            st.text_area("Code Explanation", explanation_text, height=400)
+            explanation = generate_code_explanation(code_content)
+            st.success("✅ Code Explanation Ready")
+            st.text_area("Code Explanation", explanation, height=400)
+
+    # Generate Topper Notes
+    if st.button("📚 Generate Topper Notes"):
+        with st.spinner("Generating topper-style notes..."):
+            notes = generate_topper_notes(code_content)
+            st.success("✅ Topper Notes Generated")
+            st.text_area("Topper Notes", notes, height=400)
+            
+
+            # Speak notes aloud (JS-based button)
+            components.html(f"""
+    <div style="margin-top: 20px;">
+        <button onclick="playText()" style="padding:10px 20px;margin-right:10px;font-size:16px;">▶️ Play</button>
+        <button onclick="pauseText()" style="padding:10px 20px;margin-right:10px;font-size:16px;">⏸️ Pause</button>
+        <button onclick="stopText()" style="padding:10px 20px;font-size:16px;">⏹️ Stop</button>
+    </div>
+    <script>
+        let utterance;
+        let isPlaying = false;
+
+        function playText() {{
+            if (!utterance || !isPlaying) {{
+                const text = `{notes.replace("`", "'").replace("\\", "\\\\").replace("\n", " ")}`;
+                utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.onend = () => {{
+                    isPlaying = false;
+                }};
+                speechSynthesis.speak(utterance);
+                isPlaying = true;
+            }} else if (speechSynthesis.paused) {{
+                speechSynthesis.resume();
+            }}
+        }}
+
+        function pauseText() {{
+            if (speechSynthesis.speaking && !speechSynthesis.paused) {{
+                speechSynthesis.pause();
+            }}
+        }}
+
+        function stopText() {{
+            if (speechSynthesis.speaking) {{
+                speechSynthesis.cancel();
+                isPlaying = false;
+            }}
+        }}
+    </script>
+""", height=150)
+
+
+            # Download Notes PDF
+            pdf_file = generate_pdf(notes, filename="Topper_Notes.pdf")
+            with open(pdf_file, "rb") as f:
+                st.download_button("📥 Download Notes PDF", f, file_name=pdf_file)
 
 else:
-    st.info("Please upload a code file (e.g., Python, JavaScript, Jupyter notebook, etc.) to get started.")
+    st.info("📁 Please upload a code file (e.g., Python, JS, Java, Jupyter Notebook, etc.) to begin.")
