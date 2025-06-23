@@ -6,7 +6,7 @@ import os
 
 # Initialize OpenAI Groq Client
 client = openai.OpenAI(
-    api_key="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",
+    api_key="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",
     base_url="https://api.groq.com/openai/v1"
 )
 
